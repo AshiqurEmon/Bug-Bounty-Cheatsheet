@@ -1,0 +1,87 @@
+ffuf -u https://FUZZ.s3.amazonaws.com -w all.txt -t 20 -rate 10 -timeout 5 -H "User-Agent: Mozilla/5.0" -mc 200,301,302,307,308,400,403,409 -s |anew s3.txt
+aws s3 rm s3://tracking.komoot.de/ --recursive
+aws s3 sync s3://commerce.paypal.com/ ./paypal-bucket/  //download bucket objects
+aws s3api list-object-versions --bucket bucket-name //object-version
+
+
+// delete the last of in the bucket
+while read BUCKET; do
+  KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET" --query 'Contents[-1].Key' --output text 2>/dev/null)
+  if [[ "$KEY" != "None" && -n "$KEY" ]]; then
+    aws s3api delete-object --bucket "$BUCKET" --key "$KEY" >/dev/null && echo "$BUCKET -> $KEY deleted"
+  else
+    echo "$BUCKET -> No objects found or inaccessible"
+  fi
+done < tem.txt|anew delete.txt 
+//
+
+// showing version enabled or not 
+cat s3.txt | while read bucket; do
+  vstat=$(aws s3api get-bucket-versioning --bucket "$bucket" --output text 2>/dev/null | grep -i "ENABLED\|SUSPENDED")
+  if [ ! -z "$vstat" ]; then
+    echo "$bucket - $vstat"
+  fi
+done | tee -a version.txt
+
+//
+//buckets which have listing enabled
+while read b; do AWS_NO_SIGN_REQUEST=1 aws s3 ls s3://$b/ >/dev/null 2>&1 && echo $b; done < file.txt > listing_enabled.txt
+//
+
+
+
+
+
+
+Bucket Enumeration & Discovery
+Open listing
+
+Test if aws s3 ls s3://bucket-name works without authentication.
+Misconfigured public ACLs or policies might allow anonymous object listing.
+Directory brute-force
+Try wordlists (s3://bucket-name/folder/...) — sometimes ACLs are different inside subfolders.
+Check for exposed versions
+If versioning is enabled and public, older versions of files might be retrievable (aws s3api list-object-versions).
+
+2️⃣ Object-Level Misconfigurations
+Public read → You can download files (aws s3 cp s3://bucket-name/file.txt .) without creds.
+Public write → You can upload files or overwrite existing ones.
+Public delete → You can remove files (aws s3 rm).
+Overwrite attacks
+If there’s a public JS or JSON file used in a live website, overwriting it can lead to XSS, supply chain attacks, defacement.
+MIME-type abuse
+Upload a file with a misleading extension but malicious content (shell.php as shell.jpg).
+Content-Type header injection
+Overwriting files with specific headers to trigger browser behaviors.
+
+3️⃣ Policy & ACL Weaknesses
+Check bucket policy
+Look for overly permissive Principal: "*" or "Effect": "Allow".
+Check CORS misconfigurations
+aws s3api get-bucket-cors → if * is allowed in origins/headers, it might allow malicious JS in another domain to steal content.
+Check for authenticated user loopholes
+Buckets sometimes allow "aws:userid": "*", which means any AWS account holder can access it.
+
+4️⃣ Data Exposure
+Sensitive file discovery
+Look for backups (.zip, .tar.gz, .bak), logs, credentials.
+Metadata leaks
+aws s3api head-object may reveal internal info (user IDs, system names)
+Default HTML/JS hosting
+If bucket is configured for static site hosting (WebsiteEndpoint), test for client-side vulnerabilities.
+
+5️⃣ Advanced Exploitation
+Stealing signed URLs
+If application generates pre-signed URLs, check expiry misconfigurations and reuse.
+Race condition in delete-upload
+If bucket is used for app uploads, test if you can replace a file between upload & processing.
+Punycode/homoglyph bucket takeover
+
+Register a bucket with visually similar name to intercept traffic.
+
+6️⃣ AWS Internal Misuse
+Privilege escalation via bucket policies
+If the bucket allows s3:PutBucketPolicy, you could grant yourself more access.
+Chaining with other AWS services
+
+If CloudFront or Lambda reads from the bucket, overwriting files can lead to remote code execution.
