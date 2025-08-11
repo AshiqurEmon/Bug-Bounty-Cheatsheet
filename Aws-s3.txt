@@ -4,7 +4,7 @@ aws s3 sync s3://commerce.paypal.com/ ./paypal-bucket/  //download bucket object
 aws s3api list-object-versions --bucket bucket-name //object-version
 
 
-// delete the last of in the bucket
+// delete the last object
 while read BUCKET; do
   KEY=$(aws s3api list-objects-v2 --bucket "$BUCKET" --query 'Contents[-1].Key' --output text 2>/dev/null)
   if [[ "$KEY" != "None" && -n "$KEY" ]]; then
