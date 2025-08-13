@@ -1,0 +1,2 @@
+"company.com" (key= OR key: OR secret= OR secret:) filename:.env OR filename:config OR filename:settings
+"company.com" (key= OR key: OR secret= OR secret:) language:JavaScript OR language:Python
